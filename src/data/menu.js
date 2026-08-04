@@ -145,7 +145,7 @@ export const menuItems = [
   { id: 38, name: '雪碧', price: 25,image: '/images/combo1.jpg', category: 'drink' },
   { id: 39, name: '柳橙汁', price: 25,image: '/images/combo1.jpg', category: 'drink' },
   { id: 40, name: '頻果汁', price: 25,image: '/images/combo1.jpg', category: 'drink' }, 
-  { id: 41, name: '原翠綠茶', price: 25,image: '/images/combo1.jpg', category: 'drink' },
+  { id: 41, name: '原萃綠茶', price: 25,image: '/images/combo1.jpg', category: 'drink' },
   { id: 42, name: '瓶裝水', price: 10,image: '/images/combo1.jpg', category: 'drink' },
   { id: 43, name: '1.25L可樂', price: 50,image: '/images/combo1.jpg', category: 'drink' },
   { id: 44, name: '1.25L雪碧', price: 50,image: '/images/combo1.jpg', category: 'drink' },
