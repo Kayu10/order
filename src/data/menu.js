@@ -104,7 +104,7 @@ export const menuItems = [
     category: 'combo', // 套餐類別
     price: 339,
     image: '/images/combo1.jpg',
-    description: '3雞腿+3雞塊+2雞翅'
+    description: '2雞腿+3雞塊+3雞翅'
   },
    {
     id: 108,
