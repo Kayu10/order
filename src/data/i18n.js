@@ -1,7 +1,7 @@
 // src/data/menu.js
 export const translations = {
   zh: {
-    title: "📱 俏王妃線上點餐系統",
+    title: "俏王妃線上點餐系統",
     categories: [
   { id: 'all', name: '全部餐點' },
   { id: 'main', name: '美式風味' },
@@ -158,7 +158,7 @@ export const translations = {
 ]
   },
   en: {
-    title: "📱 Qiowangfei Online Ordering",
+    title: "Qiowangfei Online Ordering",
     categories: [
       { id: 'all', name: 'All Items' },
       { id: 'main', name: 'American Style' },

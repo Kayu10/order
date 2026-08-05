@@ -13,7 +13,13 @@ import DrinkModal from './components/DrinkModal.vue'
 // 0. 當前切換頁面 (預設點餐頁面 customer，可切換 admin)
 const currentTab = ref('customer')
 const isStoreOpen = ref(true)
+const fetchStoreStatus = async () => {
+  const { data } = await supabase.from('store_settings').select('is_open').single()
+  if (data) isStoreOpen.value = data.is_open
+}
 onMounted(() => {
+  fetchMenuItems()
+  fetchStoreStatus() // 初始化營業狀態
   // 1. 初始化讀取
   supabase.from('store_settings').select('is_open').single().then(({ data }) => {
     if (data) isStoreOpen.value = data.is_open
@@ -55,7 +61,7 @@ const t = computed(() => translations[currentLang.value])
 // 3. 全域語言 Provider
 provide('currentLang', currentLang)
 provide('t', t)
-
+provide('isStoreOpen', isStoreOpen)
 // 4. 動態菜單資料庫狀態
 const dbMenuItems = ref([])
 const isLoading = ref(true)
