@@ -1,5 +1,41 @@
-<!-- src/components/MenuItem.vue -->
+<template>
+  <div 
+    class="menu-item-card"
+    :class="{ 'sold-out': !item.isAvailable }"
+  >
+    <!-- 餐點圖片與售完遮罩 -->
+    <div class="image-container">
+      <img :src="item.image" :alt="item.name" />
+      <div v-if="!item.isAvailable" class="sold-out-overlay">
+        <span>{{ currentLang === 'en' ? 'SOLD OUT' : '已售完' }}</span>
+      </div>
+    </div>
+
+    <div class="item-info">
+      <h3>{{ item.name }}</h3>
+      <p v-if="item.description" class="description">{{ item.description }}</p>
+      <div class="item-footer">
+        <span class="price">${{ item.price }}</span>
+        <button 
+          type="button"
+          :disabled="!item.isAvailable"
+          @click="handleSelect"
+          class="btn-add"
+        >
+          <template v-if="!item.isAvailable">
+            {{ currentLang === 'en' ? 'Sold Out' : '暫停販售' }}
+          </template>
+          <template v-else>
+            {{ currentLang === 'en' ? 'Add' : '點餐' }}
+          </template>
+        </button>
+      </div>
+    </div>
+  </div>
+</template>
+
 <script setup>
+import { inject, ref } from 'vue'
 import { useCartStore } from '../stores/useCartStore'
 
 const props = defineProps({
@@ -9,121 +45,105 @@ const props = defineProps({
   }
 })
 
+const currentLang = inject('currentLang', ref('zh'))
 const cartStore = useCartStore()
 
-// 點擊事件處理
-const handleAddToCart = () => {
+const handleSelect = () => {
+  if (!props.item.isAvailable) return
+
+  // 如果包含飲料選項（例如套餐），開啟飲料 Modal；否則開啟標準客製化 Modal
   if (props.item.hasDrink) {
-    // 1. 套餐：先打開選飲料 Modal
     cartStore.openDrinkModal(props.item)
-  } else if (props.item.category === 'drink') {
-    // 2. 單點飲料：直接加入購物車（補上簡短文字說明，讓購物車顯示更完整）
-    cartStore.addToCart({
-      ...props.item,
-      customOptionsText: '單點飲料',
-      cartItemId: `${props.item.id}_single_drink`
-    })
   } else {
-    // 3. 其他品項（炸雞、薯條等）：打開調味 Modal
     cartStore.openCustomModal(props.item)
   }
 }
 </script>
 
-<template>
-  <div class="card">
-    <!-- 防破圖處理 -->
-    <img 
-      :src="item.image" 
-      :alt="item.name" 
-      class="card-img"
-      @error="(e) => e.target.style.display = 'none'" 
-    />
-
-    <div class="card-body">
-      <div class="card-header">
-        <h3 class="title">{{ item.name }}</h3>
-        
-        <p v-if="item.description" class="description">
-          {{ item.description }}
-        </p>
-
-        <span class="price">${{ item.price }}</span>
-      </div>
-
-      <!-- 💡 補上 type="button"，防止在 Form 標籤內部造成自動 Submit 刷新頁面 -->
-      <button type="button" class="add-btn" @click="handleAddToCart">
-        + 加入購物車
-      </button>
-    </div>
-  </div>
-</template>
-
 <style scoped>
-.description {
-  font-size: 1rem;
-  color: #6b7280;
-  margin: 4px 0;
-  line-height: 1.3;
-  display: -webkit-box;
-  line-clamp: 2;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.card {
+.menu-item-card {
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   overflow: hidden;
-  background: #fff;
+  background: white;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
   display: flex;
   flex-direction: column;
 }
 
-.card-img {
+.menu-item-card.sold-out {
+  opacity: 0.7;
+}
+
+.image-container {
+  position: relative;
   width: 100%;
-  height: 140px;
+  height: 160px;
+}
+
+.image-container img {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
 }
 
-.card-body {
+.sold-out-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-weight: bold;
+  font-size: 1.1rem;
+  letter-spacing: 1px;
+}
+
+.item-info {
   padding: 12px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  text-align: center;
+  flex: 1;
 }
 
-.card-header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.title {
-  margin: 0;
+.item-info h3 {
   font-size: 1rem;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.description {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-bottom: 12px;
+}
+
+.item-footer {
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .price {
-  color: #2563eb;
   font-weight: bold;
+  font-size: 1.1rem;
+  color: #2563eb;
 }
 
-.add-btn {
-  width: 100%;
-  padding: 8px;
-  background-color: #1d4ed8;
+.btn-add {
+  padding: 6px 14px;
+  background-color: #2563eb;
   color: white;
   border: none;
   border-radius: 6px;
+  font-weight: bold;
   cursor: pointer;
-  font-size: 0.9rem;
 }
 
-.add-btn:hover {
-  background-color: #1e40af;
+.btn-add:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
 }
 </style>

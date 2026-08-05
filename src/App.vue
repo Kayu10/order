@@ -1,41 +1,105 @@
 <script setup>
-import { ref, computed, provide } from 'vue'
+import { ref, computed, provide, onMounted } from 'vue'
 import { translations } from './data/i18n.js'
 import { useCartStore } from './stores/useCartStore'
-
+import { supabase } from './utils/supabase.js'
+import AdminView from './components/AdminView.vue'
 import MenuItem from './components/MenuItem.vue'
 import Cart from './components/Cart.vue'
 import CustomModal from './components/CustomizationModal.vue'
 import DrinkModal from './components/DrinkModal.vue'
-
+const currentTab = ref('admin')
 const cartStore = useCartStore()
 
-// 1. 當前語言狀態 (預設為中文 'zh')
+// 1. 當前語言狀態
 const currentLang = ref('zh')
 
-// 2. 響應式的當前語言字典 (包含 title, categories, menuItems)
+// 2. 靜態翻譯字典 (提供系統標題與分類)
 const t = computed(() => translations[currentLang.value])
 
-// 3. 將語言資訊提供給子組件 (如 MenuItem, Cart 等，如果他們需要讀取多語言)
+// 3. 全域語言 Provider
 provide('currentLang', currentLang)
 provide('t', t)
 
-// 4. 當前選中的分類 ID
+// 4. 動態菜單資料庫狀態
+const dbMenuItems = ref([])
+const isLoading = ref(true)
+const fetchError = ref(null)
+
+// 5. 從 Supabase 抓取菜單資料
+const fetchMenuItems = async () => {
+  isLoading.value = true
+  fetchError.value = null
+  try {
+    const { data, error } = await supabase
+      .from('menu_items')
+      .select('*')
+      .order('id', { ascending: true })
+
+    if (error) throw error
+
+    // 將資料庫資料格式化為符合前端組件要求的結構
+    dbMenuItems.value = data || []
+  } catch (err) {
+    console.error('抓取 Supabase 菜單失敗:', err)
+    fetchError.value = '無法載入菜單，請重新整理頁面'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// 元件掛載時抓取一次
+onMounted(() => {
+  fetchMenuItems()
+})
+
+// 6. 依語言轉換後的動態菜單列表
+const formattedMenuItems = computed(() => {
+  return dbMenuItems.value.map(item => {
+    const isEn = currentLang.value === 'en'
+    return {
+      id: item.id,
+      name: isEn ? (item.name_en || item.name_zh) : item.name_zh,
+      price: item.price,
+      category: item.category,
+      image: item.image || '/images/combo1.jpg',
+      description: isEn ? (item.description_en || item.description_zh) : item.description_zh,
+      isAvailable: item.is_available ?? true, // 是否售完 / 暫停販售
+      hasDrink: item.has_drink ?? false,
+      hasSide: item.has_side ?? false,
+      defaultDrink: isEn ? (item.default_drink_en || item.default_drink_zh) : item.default_drink_zh,
+      drinkOptions: isEn ? (item.drink_options_en || item.drink_options_zh) : item.drink_options_zh,
+      defaultSide: isEn ? (item.default_side_en || item.default_side_zh) : item.default_side_zh,
+      sideOptions: isEn ? (item.side_options_en || item.side_options_zh) : item.side_options_zh
+    }
+  })
+})
+
+// 7. 選中的分類 ID
 const selectedCategory = ref('all')
 
-// 5. 根據「當前語言」與「選中分類」動態過濾菜單
+// 8. 根據選中分類過濾後的餐點
 const filteredMenuItems = computed(() => {
-  const items = t.value.menuItems || []
   if (selectedCategory.value === 'all') {
-    return items
+    return formattedMenuItems.value
   }
-  return items.filter(item => item.category === selectedCategory.value)
+  return formattedMenuItems.value.filter(item => item.category === selectedCategory.value)
 })
 </script>
 
 <template>
-  <div class="app-container">
-    <!-- 頂部語言切換按鈕區塊 -->
+  <div>
+    <!-- 頂部切換鈕 -->
+    <div style="background: #1e293b; color: white; padding: 8px; text-align: center;">
+      <button @click="currentTab = 'customer'">📱 顧客點餐畫面</button>
+      <button @click="currentTab = 'admin'" style="margin-left: 10px;">⚙️ 員工管理後台</button>
+    </div>
+
+    <!-- 根據當前頁面切換顯示 -->
+    <AdminView v-if="currentTab === 'admin'" />
+    <div v-else>
+    <!-- 頂部語言切換區塊 -->
+     <div class="app-container">
     <header class="header">
       <h1>{{ t.title }}</h1>
       <div class="lang-switch">
@@ -54,7 +118,7 @@ const filteredMenuItems = computed(() => {
 
     <main class="main-content">
       <section class="menu-section">
-        <!-- 分類按鈕區塊：改從 t.categories 讀取 -->
+        <!-- 分類按鈕區塊 -->
         <div class="category-buttons">
           <button 
             v-for="cat in t.categories" 
@@ -66,8 +130,21 @@ const filteredMenuItems = computed(() => {
           </button>
         </div>
 
+        <!-- 載入中狀態 -->
+        <div v-if="isLoading" class="text-center py-12 text-gray-500">
+          <p class="text-sm font-bold">⌛ {{ currentLang === 'en' ? 'Loading menu...' : '菜單載入中...' }}</p>
+        </div>
+
+        <!-- 錯誤提示 -->
+        <div v-else-if="fetchError" class="text-center py-12 text-red-500">
+          <p class="text-sm font-bold">{{ fetchError }}</p>
+          <button @click="fetchMenuItems" class="mt-2 text-xs bg-red-100 text-red-700 px-3 py-1 rounded">
+            重新嘗試
+          </button>
+        </div>
+
         <!-- 菜單列表區塊 -->
-        <div class="menu-grid">
+        <div v-else class="menu-grid">
           <MenuItem 
             v-for="item in filteredMenuItems" 
             :key="item.id" 
@@ -90,10 +167,36 @@ const filteredMenuItems = computed(() => {
       @add-to-cart="(customizedItem) => cartStore.addToCart(customizedItem)"
     />
     <DrinkModal v-if="cartStore.isDrinkModalOpen" />
+    </div>
   </div>
 </template>
 
 <style scoped>
+/* 頂部切換列樣式 */
+.top-nav {
+  background-color: #1e293b;
+  padding: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.top-nav button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid #475569;
+  background: #334155;
+  color: #cbd5e1;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.top-nav button.active {
+  background-color: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}
 .app-container {
   padding: 20px;
   max-width: 1200px;
