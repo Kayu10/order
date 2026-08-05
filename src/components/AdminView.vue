@@ -193,8 +193,8 @@ const PRINTER_PORT = ref(9100)
 
 // 營業狀態與時間設定
 const isStoreOpen = ref(true)
-const openTime = ref('10:00')
-const closeTime = ref('21:00')
+const openTime = ref('15:00')
+const closeTime = ref('23:00')
 
 // 讀取當前營業設定
 const fetchStoreSettings = async () => {
@@ -202,8 +202,8 @@ const fetchStoreSettings = async () => {
     const { data } = await supabase.from('store_settings').select('*').single()
     if (data) {
       isStoreOpen.value = data.is_open
-      openTime.value = data.open_time || '10:00'
-      closeTime.value = data.close_time || '21:00'
+      openTime.value = data.open_time || '15:00'
+      closeTime.value = data.close_time || '23:00'
     }
   } catch (err) {
     console.error('讀取營業設定失敗:', err)
