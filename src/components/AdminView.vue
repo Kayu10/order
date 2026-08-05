@@ -1,7 +1,19 @@
 <template>
     <section class="add-item-card">
-  <h3>🏪 店家營業狀態控制</h3>
-  <div class="store-status-box">
+  <h3>🏪 店家營業狀態與時間設定</h3>
+  
+  <div class="form-grid" style="margin-bottom: 16px;">
+    <div class="form-group">
+      <label>每日開始營業時間</label>
+      <input v-model="openTime" type="time" @change="updateStoreSettings" />
+    </div>
+    <div class="form-group">
+      <label>每日結束營業時間</label>
+      <input v-model="closeTime" type="time" @change="updateStoreSettings" />
+    </div>
+  </div>
+
+  <div class="store-status-box" style="display: flex; align-items: center; gap: 12px; margin-top: 12px;">
     <label class="switch">
       <input 
         type="checkbox" 
@@ -10,9 +22,14 @@
       />
       <span class="slider round"></span>
     </label>
-    <span :class="['status-text', isStoreOpen ? 'text-green' : 'text-red']">
-      {{ isStoreOpen ? '🟢 營業中 (允許顧客點餐)' : '🔴 暫停營業 (打烊/備料中)' }}
-    </span>
+    <div>
+      <span :class="['status-text', isStoreOpen ? 'text-green' : 'text-red']">
+        {{ isStoreOpen ? '🟢 當前狀態：營業中' : '🔴 當前狀態：暫停營業中 (打烊)' }}
+      </span>
+      <p style="font-size: 0.75rem; color: #64748b; margin: 4px 0 0 0;">
+        (營業時間設定為 {{ openTime }} ~ {{ closeTime }}，手動切換開關可隨時強制公休或營業)
+      </p>
+    </div>
   </div>
 </section>
   <div class="admin-container">
@@ -178,7 +195,40 @@ const fetchStoreStatus = async () => {
   const { data } = await supabase.from('store_settings').select('is_open').single()
   if (data) isStoreOpen.value = data.is_open
 }
+const openTime = ref('15:00')
+const closeTime = ref('23:00')
+const fetchStoreSettings = async () => {
+  const { data } = await supabase.from('store_settings').select('*').single()
+  if (data) {
+    isStoreOpen.value = data.is_open
+    openTime.value = data.open_time || '10:00'
+    closeTime.value = data.close_time || '21:00'
+  }
+}
 
+// 儲存時間與手動狀態
+const updateStoreSettings = async () => {
+  try {
+    const { error } = await supabase
+      .from('store_settings')
+      .update({
+        open_time: openTime.value,
+        close_time: closeTime.value,
+        is_open: isStoreOpen.value
+      })
+      .eq('id', 1)
+
+    if (error) throw error
+  } catch (err) {
+    alert('更新營業時間設定失敗：' + err.message)
+  }
+}
+
+// 切換手動狀態
+const toggleStoreOpen = async () => {
+  isStoreOpen.value = !isStoreOpen.value
+  await updateStoreSettings()
+}
 // 切換營業狀態
 const toggleStoreOpen = async () => {
   const newStatus = !isStoreOpen.value
@@ -198,6 +248,7 @@ const toggleStoreOpen = async () => {
 let orderSubscription = null
 
 onMounted(() => {
+    
   orderSubscription = supabase
     .channel('public:orders')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, (payload) => {
@@ -206,7 +257,7 @@ onMounted(() => {
       
       // 自動觸發出單機
       sendToPrinter(newOrder)
-      
+      fetchStoreSettings()
     })
     .subscribe()
     fetchStoreStatus()

@@ -17,10 +17,41 @@ const fetchStoreStatus = async () => {
   const { data } = await supabase.from('store_settings').select('is_open').single()
   if (data) isStoreOpen.value = data.is_open
 }
+const checkIfOpen = (settings) => {
+  // 如果店長手動關閉，直接傳回 false (手動優先)
+  if (!settings.is_open) return false
+
+  const now = new Date()
+  const currentMinutes = now.getHours() * 60 + now.getMinutes()
+
+  const [openH, openM] = (settings.open_time || '10:00').split(':').map(Number)
+  const [closeH, closeM] = (settings.close_time || '21:00').split(':').map(Number)
+
+  const openMinutes = openH * 60 + openM
+  const closeMinutes = closeH * 60 + closeM
+
+  // 判斷是否在時間區間內
+  if (closeMinutes >= openMinutes) {
+    return currentMinutes >= openMinutes && currentMinutes < closeMinutes
+  } else {
+    // 跨夜營業 (例如 18:00 到凌晨 02:00)
+    return currentMinutes >= openMinutes || currentMinutes < closeMinutes
+  }
+}
+
+// 讀取並訂閱設定
+const fetchStoreStatus = async () => {
+  const { data } = await supabase.from('store_settings').select('*').single()
+  if (data) {
+    isStoreOpen.value = checkIfOpen(data)
+  }
+}
 onMounted(() => {
   fetchMenuItems()
   fetchStoreStatus() // 初始化營業狀態
+  setInterval(fetchStoreStatus, 60000)
   // 1. 初始化讀取
+  
   supabase.from('store_settings').select('is_open').single().then(({ data }) => {
     if (data) isStoreOpen.value = data.is_open
   })
@@ -29,7 +60,7 @@ onMounted(() => {
   supabase
     .channel('public:store_settings')
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'store_settings' }, (payload) => {
-      isStoreOpen.value = payload.new.is_open
+      isStoreOpen.value = checkIfOpen(payload.new)
     })
     .subscribe()
 })
