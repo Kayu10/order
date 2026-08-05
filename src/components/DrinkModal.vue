@@ -1,37 +1,66 @@
 <template>
-  <!-- 當 store 的 isDrinkModalOpen 為 true 時顯示彈窗 -->
   <Transition name="fade">
     <div v-if="cartStore.isDrinkModalOpen" class="modal-overlay" @click.self="handleClose">
       <div class="modal-content">
         <div class="modal-header">
-          <h3>{{ currentLang === 'en' ? 'Select Beverage' : '請選擇飲料' }}</h3>
+          <h3>{{ currentLang === 'en' ? 'Select Options' : '請選擇套餐內容' }}</h3>
           <span class="close-btn" @click="handleClose">&times;</span>
         </div>
         
         <p v-if="cartStore.selectedItemForDrink" class="current-item">
-          {{ cartStore.selectedItemForDrink?.name }} {{ currentLang === 'en' ? 'Beverage Choice' : '的飲料' }}
+          {{ cartStore.selectedItemForDrink?.name }}
         </p>
 
-        <!-- 飲料選項列表 -->
-        <div class="drink-options">
-          <label 
-            v-for="drink in drinkOptions" 
-            :key="drink" 
-            class="drink-option"
-            :class="{ active: selectedDrink === drink }"
-          >
-            <input 
-              type="radio" 
-              name="drink" 
-              :value="drink" 
-              v-model="selectedDrink"
-            />
-            <span class="drink-name">{{ drink }}</span>
-          </label>
+        <div class="modal-body space-y-4">
+          <!-- 1. 副餐二選一 (若餐點有 hasSide 才顯示) -->
+          <div v-if="cartStore.selectedItemForDrink?.hasSide" class="option-section">
+            <h4 class="option-title">
+              🍟 {{ currentLang === 'en' ? 'Select Side (1 Choice)' : '選擇副餐 (二選一)' }}
+            </h4>
+            <div class="drink-options">
+              <label 
+                v-for="side in sideOptions" 
+                :key="side" 
+                class="drink-option"
+                :class="{ active: selectedSide === side }"
+              >
+                <input 
+                  type="radio" 
+                  name="side" 
+                  :value="side" 
+                  v-model="selectedSide"
+                />
+                <span class="drink-name">{{ side }}</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- 2. 飲料選擇 -->
+          <div class="option-section">
+            <h4 class="option-title">
+              🥤 {{ currentLang === 'en' ? 'Select Beverage' : '選擇飲料' }}
+            </h4>
+            <div class="drink-options">
+              <label 
+                v-for="drink in drinkOptions" 
+                :key="drink" 
+                class="drink-option"
+                :class="{ active: selectedDrink === drink }"
+              >
+                <input 
+                  type="radio" 
+                  name="drink" 
+                  :value="drink" 
+                  v-model="selectedDrink"
+                />
+                <span class="drink-name">{{ drink }}</span>
+              </label>
+            </div>
+          </div>
         </div>
 
         <!-- 按鈕區塊 -->
-        <div class="modal-actions">
+        <div class="modal-actions mt-4">
           <button type="button" class="btn-cancel" @click="handleClose">
             {{ currentLang === 'en' ? 'Cancel' : '取消' }}
           </button>
@@ -48,28 +77,34 @@
 import { ref, watch, inject } from 'vue'
 import { useCartStore } from '../stores/useCartStore'
 
-// 💡 注入來自 App.vue 的語言狀態
 const currentLang = inject('currentLang', ref('zh'))
-
 const cartStore = useCartStore()
 
 const drinkOptions = ref([])
 const selectedDrink = ref('')
 
-// 監視選中的餐點，動態帶入飲料選項與預設飲料
+const sideOptions = ref([])
+const selectedSide = ref('')
+
 watch(
   () => cartStore.selectedItemForDrink,
   (newItem) => {
     if (newItem) {
-      // 讀取傳進來的 drinkOptions 陣列
-      const fallbackOptions = currentLang.value === 'en' ? ['Coke', 'Sprite'] : ['可樂', '雪碧']
-      
+      // 初始化飲料
+      const fallbackDrinks = currentLang.value === 'en' ? ['Coke', 'Sprite'] : ['可樂', '雪碧']
       drinkOptions.value = Array.isArray(newItem.drinkOptions) && newItem.drinkOptions.length > 0
         ? newItem.drinkOptions
-        : fallbackOptions
-
-      // 讀取預設飲料，沒傳就選陣列第一個
+        : fallbackDrinks
       selectedDrink.value = newItem.defaultDrink || drinkOptions.value[0]
+
+      // 初始化副餐 (若有)
+      if (newItem.hasSide) {
+        const fallbackSides = currentLang.value === 'en' ? ['French Fries', 'Tempura'] : ['波霸薯條', '甜不辣']
+        sideOptions.value = Array.isArray(newItem.sideOptions) && newItem.sideOptions.length > 0
+          ? newItem.sideOptions
+          : fallbackSides
+        selectedSide.value = newItem.defaultSide || sideOptions.value[0]
+      }
     }
   },
   { immediate: true, deep: true }
@@ -82,16 +117,15 @@ const handleClose = () => {
 const handleConfirm = () => {
   if (!cartStore.selectedItemForDrink) return
 
-  // 1. 複製一份完整商品，並帶上選好的飲料
+  // 打包選好的飲料與副餐資訊
   const itemWithDrink = {
     ...cartStore.selectedItemForDrink,
-    selectedDrink: selectedDrink.value
+    selectedDrink: selectedDrink.value,
+    selectedSide: cartStore.selectedItemForDrink.hasSide ? selectedSide.value : null
   }
   
-  // 2. 開啟下一個客製化 Modal，將資料帶過去
+  // 開啟下一個辣度/調味粉選擇 Modal
   cartStore.openCustomModal(itemWithDrink)
-
-  // 3. 關閉目前的飲料 Modal
   cartStore.closeDrinkModal()
 }
 </script>
@@ -116,7 +150,9 @@ const handleConfirm = () => {
   padding: 20px;
   border-radius: 16px;
   width: 85%;
-  max-width: 340px;
+  max-width: 360px;
+  max-height: 85vh;
+  overflow-y: auto;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
 }
 
@@ -128,7 +164,7 @@ const handleConfirm = () => {
 }
 
 .modal-header h3 {
-  font-size: 1.25rem;
+  font-size: 1.2rem;
   font-weight: bold;
   margin: 0;
 }
@@ -140,91 +176,87 @@ const handleConfirm = () => {
 }
 
 .current-item {
-  font-size: 0.9rem;
-  color: #4b5563;
-  background: #f3f4f6;
+  font-size: 0.85rem;
+  color: #2563eb;
+  background: #eff6ff;
   padding: 6px 10px;
   border-radius: 6px;
-  display: inline-block;
-  margin-bottom: 18px;
+  font-weight: bold;
+  margin-bottom: 14px;
+}
+
+.option-title {
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: #374151;
+  margin-bottom: 8px;
 }
 
 .drink-options {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 24px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .drink-option {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
-  border: 2px solid #e5e7eb;
-  border-radius: 10px;
+  padding: 8px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.drink-option:hover {
-  border-color: #3b82f6;
-}
-
 .drink-option.active {
   border-color: #2563eb;
-  background: rgba(37, 99, 235, 0.05);
+  background: rgba(37, 99, 235, 0.08);
 }
 
 .drink-name {
-  font-size: 1rem;
+  font-size: 0.85rem;
   font-weight: 500;
-  margin-left: 12px;
+  margin-left: 6px;
 }
 
 .drink-option input[type="radio"] {
-  width: 1.2rem;
-  height: 1.2rem;
   accent-color: #2563eb;
 }
 
 .modal-actions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
 }
 
 .btn-cancel {
   flex: 1;
-  padding: 12px;
+  padding: 10px;
   background: #f9fafb;
   border: 1px solid #d1d5db;
-  border-radius: 10px;
+  border-radius: 8px;
   color: #374151;
+  font-size: 0.85rem;
   font-weight: 500;
   cursor: pointer;
 }
 
 .btn-confirm {
   flex: 1.5;
-  padding: 12px;
+  padding: 10px;
   background: #2563eb;
   border: none;
-  border-radius: 10px;
+  border-radius: 8px;
   color: #ffffff;
+  font-size: 0.85rem;
   font-weight: bold;
   cursor: pointer;
 }
 
-.btn-confirm:hover {
-  background: #1d4ed8;
-}
-
-.fade-enter-active,
-.fade-leave-active {
+.fade-enter-active, .fade-leave-active {
   transition: opacity 0.2s ease;
 }
-
-.fade-enter-from,
-.fade-leave-to {
+.fade-enter-from, .fade-leave-to {
   opacity: 0;
 }
 </style>

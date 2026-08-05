@@ -91,7 +91,10 @@ export const translations = {
     description: '雞排+薯條或甜不辣(二選一)+飲料',
     hasDrink: true,
     defaultDrink: '可樂',
-    drinkOptions: ['可樂', '雪碧','蘋果汁','柳橙汁', '無糖綠茶', '兩罐瓶裝水']
+    drinkOptions: ['可樂', '雪碧','蘋果汁','柳橙汁', '無糖綠茶', '兩罐瓶裝水'],
+    hasSide: true,
+  defaultSide: '波霸薯條',
+  sideOptions: ['波霸薯條', '甜不辣']
   },
    {
     id: 106,
@@ -245,7 +248,10 @@ export const translations = {
         description: 'Chicken Steak + Fries or Tempura + Drink',
         hasDrink: true,
         defaultDrink: 'Coke',
-        drinkOptions: ['Coke', 'Sprite', 'Apple Juice', 'Orange Juice', 'Green Tea', 'Bottled Water x2']
+        drinkOptions: ['Coke', 'Sprite', 'Apple Juice', 'Orange Juice', 'Green Tea', 'Bottled Water x2'],
+        hasSide: true,
+  defaultSide: 'French Fries',
+  sideOptions: ['French Fries', 'Tempura']
       },
       {
         id: 106,

@@ -80,6 +80,7 @@ const handleAddToCart = () => {
 
   // 1. 過濾有效選項
   const rawOptionsList = [
+    props.item?.selectedSide,
     props.item?.selectedDrink,
     selectedSpicy.value,
     ...sortedPowders
