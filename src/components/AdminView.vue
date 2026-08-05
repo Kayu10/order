@@ -129,7 +129,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted ,onUnmounted} from 'vue'
 import { supabase } from '../utils/supabase.js'
 import { generateReceiptBuffer } from '../utils/printer.js'
 const menuItems = ref([])
