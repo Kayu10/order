@@ -201,7 +201,7 @@ const filteredMenuItems = computed(() => {
 </template>
 
 <style scoped>
-/* 頂部切換列樣式 */
+/* 頂部頁面切換列 */
 .top-nav {
   background-color: #1e293b;
   padding: 10px;
@@ -228,64 +228,92 @@ const filteredMenuItems = computed(() => {
 }
 
 .app-container {
-  padding: 20px;
+  padding: 12px !important;
   max-width: 1200px;
   margin: 0 auto;
 }
 
+/* 標題與語言切換區塊修復 */
 .header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  margin-bottom: 16px !important;
+  gap: 8px !important;
+}
+
+.header h1 {
+  font-size: 1.1rem !important; /* 縮小標題字體，防止手機擠壓 */
+  line-height: 1.2 !important;
+  margin: 0 !important;
+  white-space: nowrap !important; /* 絕不換行重疊 */
+  color: #0f172a !important;
+}
+
+.lang-switch {
+  display: flex !important;
+  gap: 4px !important;
+  flex-shrink: 0 !important;
 }
 
 .lang-switch button {
-  margin-left: 8px;
-  padding: 6px 14px;
-  cursor: pointer;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  background: white;
-  font-weight: bold;
+  padding: 4px 8px !important;
+  font-size: 0.75rem !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 6px !important;
+  background: white !important;
+  cursor: pointer !important;
 }
 
 .lang-switch button.active {
-  background-color: #2563eb;
-  color: white;
-  border-color: #2563eb;
+  background-color: #2563eb !important;
+  color: white !important;
+  border-color: #2563eb !important;
 }
 
+/* 分類按鈕區塊 (橫向滑動) */
 .category-buttons {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
+  display: flex !important;
+  gap: 8px !important;
+  margin-bottom: 16px !important;
+  overflow-x: auto !important; /* 手機端可左右滑動 */
+  padding-bottom: 6px !important;
+  white-space: nowrap !important;
+  -webkit-overflow-scrolling: touch;
 }
 
 .category-buttons button {
-  padding: 8px 16px;
-  border-radius: 20px;
-  border: 1px solid #e5e7eb;
-  background-color: #f3f4f6;
-  cursor: pointer;
+  padding: 6px 14px !important;
+  font-size: 0.85rem !important;
+  border-radius: 20px !important;
+  border: 1px solid #e2e8f0 !important;
+  background-color: #f1f5f9 !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
 }
 
 .category-buttons button.active {
-  background-color: #42b883;
-  color: white;
-  border-color: #42b883;
+  background-color: #10b981 !important;
+  color: white !important;
+  border-color: #10b981 !important;
 }
 
+/* 電腦端 3 欄 / 手機端 2 欄卡片 */
 .menu-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr); 
-  gap: 16px;
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important; 
+  gap: 16px !important;
 }
 
 @media (max-width: 768px) {
+  .header h1 {
+    font-size: 1rem !important;
+  }
+  
+  /* 📱 手機端強制顯示 2 欄精緻小卡片 */
   .menu-grid {
-    grid-template-columns: repeat(1, 1fr);
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
   }
 }
 </style>
