@@ -45,6 +45,9 @@ const checkIfOpen = (settings) => {
   if (!settings.is_open) return false
 
   const now = new Date()
+  if (now.getDay() === 3) {
+    return false
+  }
   const currentMinutes = now.getHours() * 60 + now.getMinutes()
 
   const [openH, openM] = (settings.open_time || '10:00').split(':').map(Number)
