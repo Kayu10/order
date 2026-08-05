@@ -1,44 +1,61 @@
 <template>
-    <section class="add-item-card">
-  <h3>🏪 店家營業狀態與時間設定</h3>
-  
-  <div class="form-grid" style="margin-bottom: 16px;">
-    <div class="form-group">
-      <label>每日開始營業時間</label>
-      <input v-model="openTime" type="time" @change="updateStoreSettings" />
-    </div>
-    <div class="form-group">
-      <label>每日結束營業時間</label>
-      <input v-model="closeTime" type="time" @change="updateStoreSettings" />
-    </div>
-  </div>
-
-  <div class="store-status-box" style="display: flex; align-items: center; gap: 12px; margin-top: 12px;">
-    <label class="switch">
-      <input 
-        type="checkbox" 
-        :checked="isStoreOpen" 
-        @change="toggleStoreOpen" 
-      />
-      <span class="slider round"></span>
-    </label>
-    <div>
-      <span :class="['status-text', isStoreOpen ? 'text-green' : 'text-red']">
-        {{ isStoreOpen ? '🟢 當前狀態：營業中' : '🔴 當前狀態：暫停營業中 (打烊)' }}
-      </span>
-      <p style="font-size: 0.75rem; color: #64748b; margin: 4px 0 0 0;">
-        (營業時間設定為 {{ openTime }} ~ {{ closeTime }}，手動切換開關可隨時強制公休或營業)
-      </p>
-    </div>
-  </div>
-</section>
   <div class="admin-container">
     <header class="admin-header">
       <h2>⚙️ 俏王妃 - 員工/店長後台管理</h2>
       <button @click="fetchMenuItems" class="btn-refresh">🔄 重新整理菜單</button>
     </header>
 
-    <!-- 1. 新增餐點區塊 -->
+    <!-- 1. 店家營業狀態與時間設定卡片 -->
+    <section class="add-item-card">
+      <h3>🏪 店家營業狀態與時間設定</h3>
+      
+      <div class="form-grid" style="margin-bottom: 16px;">
+        <div class="form-group">
+          <label>每日開始營業時間</label>
+          <input v-model="openTime" type="time" @change="updateStoreSettings" />
+        </div>
+        <div class="form-group">
+          <label>每日結束營業時間</label>
+          <input v-model="closeTime" type="time" @change="updateStoreSettings" />
+        </div>
+      </div>
+
+      <div class="store-status-box" style="display: flex; align-items: center; gap: 12px; margin-top: 12px;">
+        <label class="switch">
+          <input 
+            type="checkbox" 
+            :checked="isStoreOpen" 
+            @change="toggleStoreOpen" 
+          />
+          <span class="slider round"></span>
+        </label>
+        <div>
+          <span :class="['status-text', isStoreOpen ? 'text-green' : 'text-red']">
+            {{ isStoreOpen ? '🟢 當前狀態：營業中' : '🔴 當前狀態：暫停營業中 (打烊)' }}
+          </span>
+          <p style="font-size: 0.75rem; color: #64748b; margin: 4px 0 0 0;">
+            (營業時間設定為 {{ openTime }} ~ {{ closeTime }}，手動切換開關可隨時強制公休或營業)
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 局域網出單機設定 -->
+    <section class="add-item-card">
+      <h3>🜄 局域網出單機設定</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>出單機內網 IP 位址</label>
+          <input v-model.trim="PRINTER_IP" type="text" placeholder="例：192.168.1.200" />
+        </div>
+        <div class="form-group">
+          <label>出單機 連接埠 (Port)</label>
+          <input v-model.number="PRINTER_PORT" type="number" placeholder="預設 9100" />
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. 新增餐點區塊 -->
     <section class="add-item-card">
       <h3>➕ 新增菜單品項</h3>
       <form @submit.prevent="handleAddItem" class="item-form">
@@ -103,7 +120,7 @@
       </form>
     </section>
 
-    <!-- 2. 品項管理與一鍵上下架清單 -->
+    <!-- 4. 品項管理與一鍵上下架清單 -->
     <section class="menu-management">
       <h3>📋 菜單上下架控制</h3>
 
@@ -135,7 +152,7 @@
               <td><span class="category-badge">{{ item.category }}</span></td>
               <td class="price-cell">${{ item.price }}</td>
               <td>
-                <!-- 💡 一鍵切換上下架開關 -->
+                <!-- 一鍵切換上下架開關 -->
                 <label class="switch">
                   <input 
                     type="checkbox" 
@@ -162,47 +179,34 @@
 </template>
 
 <script setup>
-import { ref, onMounted ,onUnmounted} from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { supabase } from '../utils/supabase.js'
 import { generateReceiptBuffer } from '../utils/printer.js'
-const isStoreOpen = ref(true)
+
 const menuItems = ref([])
 const isLoading = ref(true)
 const isSubmitting = ref(false)
-// 出單機的局域網 IP (請設定為印表機靜態 IP)
+
+// 出單機設定
 const PRINTER_IP = ref('192.168.1.200')
-const PRINTER_PORT = 9100 // 熱感應出單機標準 Port
-// 發送列印請求至出單機
-const sendToPrinter = async (order) => {
-  try {
-    const rawReceipt = generateReceiptBuffer(order)
-    
-    // 透過 HTTP / Raw Socket 傳送至熱感應印表機
-    const response = await fetch(`http://${PRINTER_IP.value}:${PRINTER_PORT}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain; charset=utf-8'
-      },
-      body: rawReceipt
-    })
-    
-    console.log('✅ 出單成功！')
-  } catch (err) {
-    console.error('❌ 出單機連線失敗，請檢查網路與 IP:', err)
-  }
-}
-const fetchStoreStatus = async () => {
-  const { data } = await supabase.from('store_settings').select('is_open').single()
-  if (data) isStoreOpen.value = data.is_open
-}
-const openTime = ref('15:00')
-const closeTime = ref('23:00')
+const PRINTER_PORT = ref(9100)
+
+// 營業狀態與時間設定
+const isStoreOpen = ref(true)
+const openTime = ref('10:00')
+const closeTime = ref('21:00')
+
+// 讀取當前營業設定
 const fetchStoreSettings = async () => {
-  const { data } = await supabase.from('store_settings').select('*').single()
-  if (data) {
-    isStoreOpen.value = data.is_open
-    openTime.value = data.open_time || '10:00'
-    closeTime.value = data.close_time || '21:00'
+  try {
+    const { data } = await supabase.from('store_settings').select('*').single()
+    if (data) {
+      isStoreOpen.value = data.is_open
+      openTime.value = data.open_time || '10:00'
+      closeTime.value = data.close_time || '21:00'
+    }
+  } catch (err) {
+    console.error('讀取營業設定失敗:', err)
   }
 }
 
@@ -229,43 +233,24 @@ const toggleStoreOpen = async () => {
   isStoreOpen.value = !isStoreOpen.value
   await updateStoreSettings()
 }
-// 切換營業狀態
-const toggleStoreOpen = async () => {
-  const newStatus = !isStoreOpen.value
-  isStoreOpen.value = newStatus
+
+// 發送列印請求至出單機
+const sendToPrinter = async (order) => {
   try {
-    const { error } = await supabase
-      .from('store_settings')
-      .update({ is_open: newStatus })
-      .eq('id', 1)
-    if (error) throw error
+    const rawReceipt = generateReceiptBuffer(order)
+    await fetch(`http://${PRINTER_IP.value}:${PRINTER_PORT.value}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      body: rawReceipt
+    })
+    console.log('✅ 出單成功！')
   } catch (err) {
-    isStoreOpen.value = !newStatus
-    alert('修改營業狀態失敗：' + err.message)
+    console.error('❌ 出單機連線失敗，請檢查網路與 IP:', err)
   }
 }
-// 實時監聽 Supabase 新訂單 (Realtime)
+
 let orderSubscription = null
 
-onMounted(() => {
-    
-  orderSubscription = supabase
-    .channel('public:orders')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, (payload) => {
-      const newOrder = payload.new
-      console.log('🔔 收到新訂單，準備自動出單：', newOrder)
-      
-      // 自動觸發出單機
-      sendToPrinter(newOrder)
-      fetchStoreSettings()
-    })
-    .subscribe()
-    fetchStoreStatus()
-})
-
-onUnmounted(() => {
-  if (orderSubscription) supabase.removeChannel(orderSubscription)
-})
 // 新增品項表單預設值
 const newItem = ref({
   name_zh: '',
@@ -298,11 +283,9 @@ const fetchMenuItems = async () => {
   }
 }
 
-// 💡 核心功能 1：一鍵切換上下架 (is_available)
+// 切換菜單品項上下架 (is_available)
 const toggleAvailability = async (item) => {
   const newStatus = !item.is_available
-  
-  // 先更新本地 UI，提升反應速度
   item.is_available = newStatus
 
   try {
@@ -312,7 +295,6 @@ const toggleAvailability = async (item) => {
       .eq('id', item.id)
 
     if (error) {
-      // 若更新失敗，倒回原狀態
       item.is_available = !newStatus
       throw error
     }
@@ -321,20 +303,18 @@ const toggleAvailability = async (item) => {
   }
 }
 
-// 💡 核心功能 2：新增餐點
+// 新增餐點
 const handleAddItem = async () => {
   isSubmitting.value = true
   try {
     const payload = {
       ...newItem.value,
-      // 若包含飲料，可賦予預設可選陣列
       ...(newItem.value.has_drink && {
         default_drink_zh: '可樂',
         default_drink_en: 'Coke',
         drink_options_zh: ['可樂', '雪碧', '蘋果汁', '柳橙汁', '無糖綠茶'],
         drink_options_en: ['Coke', 'Sprite', 'Apple Juice', 'Orange Juice', 'Green Tea']
       }),
-      // 若包含副餐，可賦予預設可選陣列
       ...(newItem.value.has_side && {
         default_side_zh: '波霸薯條',
         default_side_en: 'French Fries',
@@ -350,8 +330,6 @@ const handleAddItem = async () => {
     if (error) throw error
 
     alert('新增餐點成功！')
-    
-    // 重置表單並重新整理清單
     newItem.value = {
       name_zh: '',
       name_en: '',
@@ -364,7 +342,6 @@ const handleAddItem = async () => {
       has_drink: false,
       has_side: false
     }
-    
     await fetchMenuItems()
   } catch (err) {
     alert('新增失敗：' + err.message)
@@ -373,7 +350,7 @@ const handleAddItem = async () => {
   }
 }
 
-// 💡 核心功能 3：刪除餐點
+// 刪除餐點
 const handleDeleteItem = async (id, name) => {
   if (!confirm(`確定要刪除「${name}」嗎？此操作無法復原。`)) return
 
@@ -394,6 +371,19 @@ const handleDeleteItem = async (id, name) => {
 
 onMounted(() => {
   fetchMenuItems()
+  fetchStoreSettings()
+
+  // 訂閱新訂單 Realtime 出單
+  orderSubscription = supabase
+    .channel('public:orders')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, (payload) => {
+      sendToPrinter(payload.new)
+    })
+    .subscribe()
+})
+
+onUnmounted(() => {
+  if (orderSubscription) supabase.removeChannel(orderSubscription)
 })
 </script>
 
@@ -433,7 +423,6 @@ onMounted(() => {
   font-weight: bold;
 }
 
-/* 卡片與表單樣式 */
 .add-item-card, .menu-management {
   background: white;
   padding: 24px;
@@ -511,7 +500,6 @@ onMounted(() => {
   cursor: pointer;
 }
 
-/* 菜單表格樣式 */
 .menu-table-wrapper {
   overflow-x: auto;
 }
@@ -581,7 +569,6 @@ onMounted(() => {
   font-weight: bold;
 }
 
-/* Switch 開關樣式 */
 .switch {
   position: relative;
   display: inline-block;
