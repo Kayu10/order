@@ -127,22 +127,26 @@ export const useCartStore = defineStore(
       taxId.value = ''
     }
 
-    // 送出訂單 (唯一正確版本)
-    async function submitOrder() {
+    // 送出訂單 (支援語系標示)
+    async function submitOrder(lang = 'zh') {
       if (cartItems.value.length === 0) return null
+
+      // 雙語預設文字處理
+      const asapText = lang === 'en' ? '⚡ ASAP' : '⚡ 儘快製作'
+      const defaultNoneText = lang === 'en' ? 'None' : '無'
 
       const payload = {
         orderId: generateOrderId(),
         diningType: diningType.value,
-        pickupTime: pickupTime.value === 'ASAP' ? '⚡ 儘快製作' : pickupTime.value,
+        pickupTime: pickupTime.value === 'ASAP' ? asapText : pickupTime.value,
         ...(diningType.value === 'dine-in' && { tableNumber: tableNumber.value }),
         ...(diningType.value === 'delivery' && { 
           deliveryAddress: deliveryAddress.value, 
           contactPhone: contactPhone.value 
         }),
         ...(diningType.value === 'takeout' && { contactPhone: contactPhone.value }),
-        orderNote: orderNote.value.trim() || '無',
-        taxId: taxId.value.trim() || '無',
+        orderNote: orderNote.value.trim() || defaultNoneText,
+        taxId: taxId.value.trim() || defaultNoneText,
         items: [...cartItems.value],
         totalPrice: totalPrice.value,
         createdAt: new Date().toLocaleString()

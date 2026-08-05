@@ -1,38 +1,58 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, inject } from 'vue'
 
 const props = defineProps({
   isOpen: Boolean,
   item: Object
 })
 
-// 💡 1. 修改 emit 名稱，將 'confirm' 改為 'add-to-cart'，避免與訂單確認衝突
 const emit = defineEmits(['close', 'add-to-cart'])
 
-// 1. 客製化選項資料
-const spicyOptions = ['不辣', '小辣', '中辣', '大辣']
-const powderOptions = ['胡椒', '梅粉', '起司粉', '都不加']
+// 💡 注入來自 App.vue 的語言狀態
+const currentLang = inject('currentLang', ref('zh'))
 
-// 2. 客製化選項狀態
+// 1. 中英文客製化選項字典
+const spicyOptions = computed(() => {
+  return currentLang.value === 'en'
+    ? ['No Spicy', 'Mild', 'Medium', 'Hot']
+    : ['不辣', '小辣', '中辣', '大辣']
+})
+
+const powderOptions = computed(() => {
+  return currentLang.value === 'en'
+    ? ['Pepper', 'Plum Powder', 'Cheese Powder', 'None']
+    : ['胡椒', '梅粉', '起司粉', '都不加']
+})
+
+const nonePowderText = computed(() => currentLang.value === 'en' ? 'None' : '都不加')
+const defaultSpicyText = computed(() => currentLang.value === 'en' ? 'No Spicy' : '不辣')
+
+// 2. 客製化選項狀態 (預設選中「不辣」與「都不加」)
 const selectedSpicy = ref('不辣')
-const selectedPowders = ref(['都不加']) // 預設都不加
+const selectedPowders = ref(['都不加'])
 
-// 當 Modal 打開時，重置所有選項
+// 當 Modal 打開時，重置所有選項為當前語言的預設值
 watch(() => props.isOpen, (newVal) => {
   if (newVal) {
-    selectedSpicy.value = '不辣'
-    selectedPowders.value = ['都不加']
+    selectedSpicy.value = defaultSpicyText.value
+    selectedPowders.value = [nonePowderText.value]
   }
 })
 
-// 處理調味粉的選擇邏輯 (包含「都不加」的互斥)
+// 語言切換時，同步更新目前已選的文字為對應語言
+watch(currentLang, () => {
+  selectedSpicy.value = defaultSpicyText.value
+  selectedPowders.value = [nonePowderText.value]
+})
+
+// 處理調味粉選擇邏輯 (含「都不加 / None」的互斥處理)
 const togglePowder = (powder) => {
-  if (powder === '都不加') {
-    selectedPowders.value = ['都不加']
+  if (powder === nonePowderText.value) {
+    selectedPowders.value = [nonePowderText.value]
     return
   }
 
-  let updated = selectedPowders.value.filter(p => p !== '都不加')
+  let updated = selectedPowders.value.filter(p => p !== nonePowderText.value)
 
   const index = updated.indexOf(powder)
   if (index > -1) {
@@ -42,7 +62,7 @@ const togglePowder = (powder) => {
   }
 
   if (updated.length === 0) {
-    updated = ['都不加']
+    updated = [nonePowderText.value]
   }
 
   selectedPowders.value = updated
@@ -58,20 +78,20 @@ const finalPrice = computed(() => {
 const handleAddToCart = () => {
   const sortedPowders = [...selectedPowders.value].sort()
 
-  // 1. 先過濾出有效的選項陣列
+  // 1. 過濾有效選項
   const rawOptionsList = [
     props.item?.selectedDrink,
     selectedSpicy.value,
     ...sortedPowders
   ].filter(Boolean)
 
-  // 💡 2. 將陣列組合為漂亮易讀的字串 (例: "小辣 / 胡椒 / 梅粉")
+  // 2. 組合字串 (例: "小辣 / 胡椒" 或 "Mild / Pepper")
   const optionsText = rawOptionsList.join(' / ')
 
-  // 💡 3. 產生唯一的 cartItemId
+  // 3. 產生唯一的 cartItemId
   const customId = `${props.item?.id}_opts:${optionsText}`
 
-  // 💡 4. 觸發 'add-to-cart' 事件，將打包好的物件傳給父元件
+  // 4. 觸發事件傳給 Pinia/父元件
   emit('add-to-cart', {
     ...props.item,
     cartItemId: customId,
@@ -92,7 +112,9 @@ const handleAddToCart = () => {
       <div class="p-4 border-b flex justify-between items-center bg-gray-50">
         <div>
           <h3 class="font-bold text-gray-800 text-lg">{{ item?.name }}</h3>
-          <p class="text-xs text-gray-500">單價：${{ item?.price }}</p>
+          <p class="text-xs text-gray-500">
+            {{ currentLang === 'en' ? 'Price:' : '單價：' }}${{ item?.price }}
+          </p>
           <p v-if="item?.description" class="text-sm text-gray-800 mt-2.5 leading-relaxed bg-blue-50/60 p-3 rounded-lg">
             📋 {{ item.description }}
           </p>
@@ -101,9 +123,11 @@ const handleAddToCart = () => {
       </div>
 
       <div class="p-5 space-y-5 max-h-[70vh] overflow-y-auto">
-        <!-- 區塊一：辣度調整（單選） -->
+        <!-- 區塊一：辣度調整 -->
         <div class="space-y-2">
-          <label class="text-sm font-bold text-gray-700 block">辣度調整</label>
+          <label class="text-sm font-bold text-gray-700 block">
+            {{ currentLang === 'en' ? 'Spiciness' : '辣度調整' }}
+          </label>
           <div class="grid grid-cols-4 gap-2">
             <button
               v-for="spicy in spicyOptions"
@@ -122,9 +146,11 @@ const handleAddToCart = () => {
           </div>
         </div>
 
-        <!-- 區塊二：調味粉選擇（可複選 / 含都不加） -->
+        <!-- 區塊二：調味粉選擇 -->
         <div class="space-y-2">
-          <label class="text-sm font-bold text-gray-700 block">調味粉選擇</label>
+          <label class="text-sm font-bold text-gray-700 block">
+            {{ currentLang === 'en' ? 'Seasoning Powder' : '調味粉選擇' }}
+          </label>
           <div class="grid grid-cols-2 gap-2">
             <button
               v-for="powder in powderOptions"
@@ -148,7 +174,9 @@ const handleAddToCart = () => {
       <!-- 底部確認按鈕 -->
       <div class="p-4 border-t bg-gray-50 flex items-center justify-between gap-4">
         <div>
-          <span class="text-xs text-gray-500 block">小計</span>
+          <span class="text-xs text-gray-500 block">
+            {{ currentLang === 'en' ? 'Subtotal' : '小計' }}
+          </span>
           <span class="text-xl font-extrabold text-blue-600">${{ finalPrice }}</span>
         </div>
         <button
@@ -156,7 +184,7 @@ const handleAddToCart = () => {
           @click="handleAddToCart"
           class="flex-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-2.5 px-4 rounded-xl shadow transition"
         >
-          加入購物車
+          {{ currentLang === 'en' ? 'Add to Cart' : '加入購物車' }}
         </button>
       </div>
 

@@ -1,43 +1,63 @@
-<!-- src/App.vue -->
 <script setup>
-import { ref, computed } from 'vue'
-
-// 1. 引入 Pinia Store
+import { ref, computed, provide } from 'vue'
+import { translations } from './data/i18n.js'
 import { useCartStore } from './stores/useCartStore'
 
-// 2. 引入分類與菜單靜態資料
-import { categories, menuItems } from './data/menu'
-
-// 3. 引入其他組件（包含 CustomModal）
 import MenuItem from './components/MenuItem.vue'
 import Cart from './components/Cart.vue'
 import CustomModal from './components/CustomizationModal.vue'
 import DrinkModal from './components/DrinkModal.vue'
-// 4. 取得 cartStore 實例
+
 const cartStore = useCartStore()
 
-// 5. 記錄當前選中的分類 id（預設為 'all'）
+// 1. 當前語言狀態 (預設為中文 'zh')
+const currentLang = ref('zh')
+
+// 2. 響應式的當前語言字典 (包含 title, categories, menuItems)
+const t = computed(() => translations[currentLang.value])
+
+// 3. 將語言資訊提供給子組件 (如 MenuItem, Cart 等，如果他們需要讀取多語言)
+provide('currentLang', currentLang)
+provide('t', t)
+
+// 4. 當前選中的分類 ID
 const selectedCategory = ref('all')
 
-// 6. 計算屬性：根據選中的分類動態過濾餐點
+// 5. 根據「當前語言」與「選中分類」動態過濾菜單
 const filteredMenuItems = computed(() => {
+  const items = t.value.menuItems || []
   if (selectedCategory.value === 'all') {
-    return menuItems // 如果選「全部餐點」，回傳所有餐點
+    return items
   }
-  return menuItems.filter(item => item.category === selectedCategory.value)
+  return items.filter(item => item.category === selectedCategory.value)
 })
 </script>
 
 <template>
   <div class="app-container">
-    <h1>📱 俏王妃線上點餐系統</h1>
+    <!-- 頂部語言切換按鈕區塊 -->
+    <header class="header">
+      <h1>{{ t.title }}</h1>
+      <div class="lang-switch">
+        <button 
+          :class="{ active: currentLang === 'zh' }" 
+          @click="currentLang = 'zh'">
+          中文
+        </button>
+        <button 
+          :class="{ active: currentLang === 'en' }" 
+          @click="currentLang = 'en'">
+          English
+        </button>
+      </div>
+    </header>
 
     <main class="main-content">
       <section class="menu-section">
-        <!-- 分類按鈕區塊 -->
+        <!-- 分類按鈕區塊：改從 t.categories 讀取 -->
         <div class="category-buttons">
           <button 
-            v-for="cat in categories" 
+            v-for="cat in t.categories" 
             :key="cat.id"
             :class="{ active: selectedCategory === cat.id }"
             @click="selectedCategory = cat.id"
@@ -62,7 +82,7 @@ const filteredMenuItems = computed(() => {
       </section>
     </main>
 
-    <!-- 💡 7. 掛載客製化彈窗（這裡一定要放，彈窗才會真正顯示！） -->
+    <!-- 掛載客製化彈窗與飲料彈窗 -->
     <CustomModal 
       :is-open="cartStore.isModalOpen"
       :item="cartStore.selectedItemForCustom"
@@ -74,19 +94,65 @@ const filteredMenuItems = computed(() => {
 </template>
 
 <style scoped>
-/* 選中的按鈕高亮樣式範例 */
-button.active {
-  background-color: #42b883;
-  color: white;
+.app-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.lang-switch button {
+  margin-left: 8px;
+  padding: 6px 14px;
+  cursor: pointer;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: white;
+  font-weight: bold;
+}
+
+.lang-switch button.active {
+  background-color: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}
+
 .category-buttons {
   display: flex;
   gap: 10px;
   margin-bottom: 20px;
+  flex-wrap: wrap;
 }
+
+.category-buttons button {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid #e5e7eb;
+  background-color: #f3f4f6;
+  cursor: pointer;
+}
+
+.category-buttons button.active {
+  background-color: #42b883;
+  color: white;
+  border-color: #42b883;
+}
+
 .menu-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr); 
-  gap: 16px; /* 卡片之間的間距 */
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .menu-grid {
+    grid-template-columns: repeat(1, 1fr);
+  }
 }
 </style>

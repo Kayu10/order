@@ -4,12 +4,12 @@
     <div v-if="cartStore.isDrinkModalOpen" class="modal-overlay" @click.self="handleClose">
       <div class="modal-content">
         <div class="modal-header">
-          <h3>請選擇飲料</h3>
+          <h3>{{ currentLang === 'en' ? 'Select Beverage' : '請選擇飲料' }}</h3>
           <span class="close-btn" @click="handleClose">&times;</span>
         </div>
         
         <p v-if="cartStore.selectedItemForDrink" class="current-item">
-          {{ cartStore.selectedItemForDrink?.name }} 的飲料
+          {{ cartStore.selectedItemForDrink?.name }} {{ currentLang === 'en' ? 'Beverage Choice' : '的飲料' }}
         </p>
 
         <!-- 飲料選項列表 -->
@@ -32,8 +32,12 @@
 
         <!-- 按鈕區塊 -->
         <div class="modal-actions">
-          <button type="button" class="btn-cancel" @click="handleClose">取消</button>
-          <button type="button" class="btn-confirm" @click="handleConfirm">下一步：選擇調味</button>
+          <button type="button" class="btn-cancel" @click="handleClose">
+            {{ currentLang === 'en' ? 'Cancel' : '取消' }}
+          </button>
+          <button type="button" class="btn-confirm" @click="handleConfirm">
+            {{ currentLang === 'en' ? 'Next: Customization' : '下一步：選擇調味' }}
+          </button>
         </div>
       </div>
     </div>
@@ -41,23 +45,28 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, inject } from 'vue'
 import { useCartStore } from '../stores/useCartStore'
+
+// 💡 注入來自 App.vue 的語言狀態
+const currentLang = inject('currentLang', ref('zh'))
 
 const cartStore = useCartStore()
 
 const drinkOptions = ref([])
 const selectedDrink = ref('')
 
-// 💡 改用 watch 針對 isDrinkModalOpen 開啟時才初始化資料，比 watchEffect 更穩定
+// 監視選中的餐點，動態帶入飲料選項與預設飲料
 watch(
   () => cartStore.selectedItemForDrink,
   (newItem) => {
     if (newItem) {
       // 讀取傳進來的 drinkOptions 陣列
+      const fallbackOptions = currentLang.value === 'en' ? ['Coke', 'Sprite'] : ['可樂', '雪碧']
+      
       drinkOptions.value = Array.isArray(newItem.drinkOptions) && newItem.drinkOptions.length > 0
         ? newItem.drinkOptions
-        : ['可樂', '雪碧']
+        : fallbackOptions
 
       // 讀取預設飲料，沒傳就選陣列第一個
       selectedDrink.value = newItem.defaultDrink || drinkOptions.value[0]
@@ -73,16 +82,16 @@ const handleClose = () => {
 const handleConfirm = () => {
   if (!cartStore.selectedItemForDrink) return
 
-  // 1. 先複製一份完整商品，並把選好的飲料附加進去
+  // 1. 複製一份完整商品，並帶上選好的飲料
   const itemWithDrink = {
     ...cartStore.selectedItemForDrink,
     selectedDrink: selectedDrink.value
   }
   
-  // 2. 順序：先開啟下一個客製化 Modal，將帶有飲料資訊的 item 傳過去
+  // 2. 開啟下一個客製化 Modal，將資料帶過去
   cartStore.openCustomModal(itemWithDrink)
 
-  // 3. 再關閉目前的飲料 Modal
+  // 3. 關閉目前的飲料 Modal
   cartStore.closeDrinkModal()
 }
 </script>
