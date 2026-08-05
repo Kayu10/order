@@ -1,19 +1,22 @@
 <template>
-  <div 
-    class="menu-item-card"
-    :class="{ 'sold-out': !item.isAvailable }"
-  >
-    <!-- 餐點圖片與售完遮罩 -->
+  <div class="menu-item-card" :class="{ 'sold-out': !item.isAvailable }">
+    <!-- 餐點圖片 -->
     <div class="image-container">
-      <img :src="item.image" :alt="item.name" />
+      <img 
+        :src="item.image" 
+        :alt="item.name" 
+        @error="handleImageError"
+      />
       <div v-if="!item.isAvailable" class="sold-out-overlay">
         <span>{{ currentLang === 'en' ? 'SOLD OUT' : '已售完' }}</span>
       </div>
     </div>
 
+    <!-- 餐點資訊 -->
     <div class="item-info">
-      <h3>{{ item.name }}</h3>
+      <h3 class="item-title">{{ item.name }}</h3>
       <p v-if="item.description" class="description">{{ item.description }}</p>
+      
       <div class="item-footer">
         <span class="price">${{ item.price }}</span>
         <button 
@@ -22,12 +25,8 @@
           @click="handleSelect"
           class="btn-add"
         >
-          <template v-if="!item.isAvailable">
-            {{ currentLang === 'en' ? 'Sold Out' : '暫停販售' }}
-          </template>
-          <template v-else>
-            {{ currentLang === 'en' ? 'Add' : '點餐' }}
-          </template>
+          <template v-if="!item.isAvailable">售完</template>
+          <template v-else>{{ currentLang === 'en' ? 'Add' : '點餐' }}</template>
         </button>
       </div>
     </div>
@@ -48,10 +47,14 @@ const props = defineProps({
 const currentLang = inject('currentLang', ref('zh'))
 const cartStore = useCartStore()
 
+// 💡 若圖片路徑載入失敗，提供備用 SVG 圖示，避免顯示 ? 破圖
+const handleImageError = (e) => {
+  e.target.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="%239ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>'
+}
+
 const handleSelect = () => {
   if (!props.item.isAvailable) return
 
-  // 如果包含飲料選項（例如套餐），開啟飲料 Modal；否則開啟標準客製化 Modal
   if (props.item.hasDrink) {
     cartStore.openDrinkModal(props.item)
   } else {
@@ -63,22 +66,26 @@ const handleSelect = () => {
 <style scoped>
 .menu-item-card {
   border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  border-radius: 10px;
   overflow: hidden;
   background: white;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .menu-item-card.sold-out {
-  opacity: 0.7;
+  opacity: 0.65;
 }
 
 .image-container {
   position: relative;
   width: 100%;
-  height: 160px;
+  height: 100px; /* 📱 縮小圖片高度，卡片更緊湊 */
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .image-container img {
@@ -90,33 +97,38 @@ const handleSelect = () => {
 .sold-out-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
   color: white;
   font-weight: bold;
-  font-size: 1.1rem;
-  letter-spacing: 1px;
+  font-size: 0.85rem;
 }
 
 .item-info {
-  padding: 12px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
   flex: 1;
 }
 
-.item-info h3 {
-  font-size: 1rem;
+.item-title {
+  font-size: 0.9rem;
   font-weight: bold;
-  margin-bottom: 4px;
+  margin: 0 0 4px 0;
+  color: #1f2937;
+  line-height: 1.2;
 }
 
 .description {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: #6b7280;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .item-footer {
@@ -124,20 +136,22 @@ const handleSelect = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding-top: 4px;
 }
 
 .price {
   font-weight: bold;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   color: #2563eb;
 }
 
 .btn-add {
-  padding: 6px 14px;
+  padding: 4px 10px;
   background-color: #2563eb;
   color: white;
   border: none;
   border-radius: 6px;
+  font-size: 0.8rem;
   font-weight: bold;
   cursor: pointer;
 }
