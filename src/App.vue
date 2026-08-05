@@ -12,62 +12,10 @@ import DrinkModal from './components/DrinkModal.vue'
 
 // 0. 當前切換頁面 (預設點餐頁面 customer，可切換 admin)
 const currentTab = ref('customer')
-const isStoreOpen = ref(true)
-const fetchStoreStatus = async () => {
-  const { data } = await supabase.from('store_settings').select('is_open').single()
-  if (data) isStoreOpen.value = data.is_open
-}
-const checkIfOpen = (settings) => {
-  // 如果店長手動關閉，直接傳回 false (手動優先)
-  if (!settings.is_open) return false
 
-  const now = new Date()
-  const currentMinutes = now.getHours() * 60 + now.getMinutes()
-
-  const [openH, openM] = (settings.open_time || '10:00').split(':').map(Number)
-  const [closeH, closeM] = (settings.close_time || '21:00').split(':').map(Number)
-
-  const openMinutes = openH * 60 + openM
-  const closeMinutes = closeH * 60 + closeM
-
-  // 判斷是否在時間區間內
-  if (closeMinutes >= openMinutes) {
-    return currentMinutes >= openMinutes && currentMinutes < closeMinutes
-  } else {
-    // 跨夜營業 (例如 18:00 到凌晨 02:00)
-    return currentMinutes >= openMinutes || currentMinutes < closeMinutes
-  }
-}
-
-// 讀取並訂閱設定
-const fetchStoreStatus = async () => {
-  const { data } = await supabase.from('store_settings').select('*').single()
-  if (data) {
-    isStoreOpen.value = checkIfOpen(data)
-  }
-}
-onMounted(() => {
-  fetchMenuItems()
-  fetchStoreStatus() // 初始化營業狀態
-  setInterval(fetchStoreStatus, 60000)
-  // 1. 初始化讀取
-  
-  supabase.from('store_settings').select('is_open').single().then(({ data }) => {
-    if (data) isStoreOpen.value = data.is_open
-  })
-
-  // 2. Realtime 訂閱：當店長後台一切換，前台不需重整理立刻連動！
-  supabase
-    .channel('public:store_settings')
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'store_settings' }, (payload) => {
-      isStoreOpen.value = checkIfOpen(payload.new)
-    })
-    .subscribe()
-})
 // 🔒 頁面切換與密碼驗證邏輯
 const switchTab = (targetTab) => {
   if (targetTab === 'admin') {
-    // 預設密碼設定為 1234 (可自行修改)
     const adminPassword = '512204' 
     const inputPassword = prompt('🔒 請輸入員工/管理員後台密碼：')
 
@@ -86,19 +34,56 @@ const cartStore = useCartStore()
 // 1. 當前語言狀態
 const currentLang = ref('zh')
 
-// 2. 靜態翻譯字典 (提供系統標題與分類)
+// 2. 靜態翻譯字典
 const t = computed(() => translations[currentLang.value])
 
-// 3. 全域語言 Provider
+// 3. 全域營業狀態與時間判斷邏輯
+const isStoreOpen = ref(true)
+
+const checkIfOpen = (settings) => {
+  // 手動關閉優先
+  if (!settings.is_open) return false
+
+  const now = new Date()
+  const currentMinutes = now.getHours() * 60 + now.getMinutes()
+
+  const [openH, openM] = (settings.open_time || '10:00').split(':').map(Number)
+  const [closeH, closeM] = (settings.close_time || '21:00').split(':').map(Number)
+
+  const openMinutes = openH * 60 + openM
+  const closeMinutes = closeH * 60 + closeM
+
+  if (closeMinutes >= openMinutes) {
+    return currentMinutes >= openMinutes && currentMinutes < closeMinutes
+  } else {
+    // 跨夜營業 (如 18:00 到 02:00)
+    return currentMinutes >= openMinutes || currentMinutes < closeMinutes
+  }
+}
+
+// 讀取營業設定
+const fetchStoreStatus = async () => {
+  try {
+    const { data } = await supabase.from('store_settings').select('*').single()
+    if (data) {
+      isStoreOpen.value = checkIfOpen(data)
+    }
+  } catch (err) {
+    console.error('讀取營業設定失敗:', err)
+  }
+}
+
+// 4. 全域 Provider 提供給子組件
 provide('currentLang', currentLang)
 provide('t', t)
 provide('isStoreOpen', isStoreOpen)
-// 4. 動態菜單資料庫狀態
+
+// 5. 動態菜單資料庫狀態
 const dbMenuItems = ref([])
 const isLoading = ref(true)
 const fetchError = ref(null)
 
-// 5. 從 Supabase 抓取菜單資料
+// 從 Supabase 抓取菜單資料
 const fetchMenuItems = async () => {
   isLoading.value = true
   fetchError.value = null
@@ -109,8 +94,6 @@ const fetchMenuItems = async () => {
       .order('id', { ascending: true })
 
     if (error) throw error
-
-    // 將資料庫資料格式化為符合前端組件要求的結構
     dbMenuItems.value = data || []
   } catch (err) {
     console.error('抓取 Supabase 菜單失敗:', err)
@@ -120,9 +103,21 @@ const fetchMenuItems = async () => {
   }
 }
 
-// 元件掛載時抓取一次
+// 整合為單一 onMounted 生命週期
 onMounted(() => {
   fetchMenuItems()
+  fetchStoreStatus()
+  
+  // 每分鐘重新檢測一次時間是否打烊
+  setInterval(fetchStoreStatus, 60000)
+
+  // Realtime 訂閱營業狀態切換
+  supabase
+    .channel('public:store_settings')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'store_settings' }, (payload) => {
+      isStoreOpen.value = checkIfOpen(payload.new)
+    })
+    .subscribe()
 })
 
 // 6. 依語言轉換後的動態菜單列表
@@ -136,7 +131,7 @@ const formattedMenuItems = computed(() => {
       category: item.category,
       image: item.image || '/images/combo1.jpg',
       description: isEn ? (item.description_en || item.description_zh) : item.description_zh,
-      isAvailable: item.is_available ?? true, // 是否售完 / 暫停販售
+      isAvailable: item.is_available ?? true,
       hasDrink: item.has_drink ?? false,
       hasSide: item.has_side ?? false,
       defaultDrink: isEn ? (item.default_drink_en || item.default_drink_zh) : item.default_drink_zh,
@@ -160,11 +155,12 @@ const filteredMenuItems = computed(() => {
 </script>
 
 <template>
-  <!-- 若暫停營業，於菜單上方顯示提示橫幅 -->
-<div v-if="!isStoreOpen" class="closed-banner">
-  ⚠️ 本店目前暫停營業中，暫不開放線上點餐！
-</div>
   <div class="main-wrapper">
+    <!-- 若暫停營業，於菜單上方顯示提示橫幅 -->
+    <div v-if="!isStoreOpen" class="closed-banner">
+      ⚠️ 本店目前暫停營業中，暫不開放線上點餐！
+    </div>
+
     <!-- 頂部頁面切換列 -->
     <nav class="top-nav">
       <button 
@@ -266,6 +262,7 @@ const filteredMenuItems = computed(() => {
   border-radius: 8px;
   margin-bottom: 16px;
 }
+
 /* 頂部頁面切換列 */
 .top-nav {
   background-color: #1e293b;
@@ -308,10 +305,10 @@ const filteredMenuItems = computed(() => {
 }
 
 .header h1 {
-  font-size: 1.1rem !important; /* 縮小標題字體，防止手機擠壓 */
+  font-size: 1.1rem !important;
   line-height: 1.2 !important;
   margin: 0 !important;
-  white-space: nowrap !important; /* 絕不換行重疊 */
+  white-space: nowrap !important;
   color: #0f172a !important;
 }
 
@@ -341,7 +338,7 @@ const filteredMenuItems = computed(() => {
   display: flex !important;
   gap: 8px !important;
   margin-bottom: 16px !important;
-  overflow-x: auto !important; /* 手機端可左右滑動 */
+  overflow-x: auto !important;
   padding-bottom: 6px !important;
   white-space: nowrap !important;
   -webkit-overflow-scrolling: touch;
@@ -375,7 +372,6 @@ const filteredMenuItems = computed(() => {
     font-size: 1rem !important;
   }
   
-  /* 📱 手機端強制顯示 2 欄精緻小卡片 */
   .menu-grid {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 8px !important;
