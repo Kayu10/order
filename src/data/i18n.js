@@ -10,7 +10,7 @@ export const translations = {
   { id: 'combo', name: '嚴選套餐' },
   { id: 'drink', name: '精選飲品' }
 ],
-  menuItems = [
+  menuItems : [
   { id: 1, name: '紐澳良雞排', price: 80,image: '/images/combo1.jpg', category: 'main' },
   { id: 2, name: '雞腿', price: 55, image: '/images/combo1.jpg',category: 'main' },
   { id: 3, name: '雞塊', price: 50,image: '/images/combo1.jpg', category: 'main' },
