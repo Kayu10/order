@@ -21,10 +21,11 @@
         <span class="price">${{ item.price }}</span>
         <button 
           type="button"
-          :disabled="!item.isAvailable"
+          :disabled="!item.isAvailable|| !isStoreOpen"
           @click="handleSelect"
           class="btn-add"
         >
+        <template v-if="!isStoreOpen">打烊中</template>
           <template v-if="!item.isAvailable">售完</template>
           <template v-else>{{ currentLang === 'en' ? 'Add' : '點餐' }}</template>
         </button>
@@ -36,7 +37,7 @@
 <script setup>
 import { inject, ref } from 'vue'
 import { useCartStore } from '../stores/useCartStore'
-
+const isStoreOpen = inject('isStoreOpen', ref(true))
 const props = defineProps({
   item: {
     type: Object,
@@ -53,6 +54,10 @@ const handleImageError = (e) => {
 }
 
 const handleSelect = () => {
+  if (!isStoreOpen.value) {
+    alert('本店目前暫停營業中，暫不開放點餐！')
+    return
+  }
   if (!props.item.isAvailable) return
 
   if (props.item.hasDrink) {

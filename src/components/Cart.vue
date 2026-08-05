@@ -4,11 +4,12 @@ import { useCartStore } from '../stores/useCartStore'
 import OrderConfirmModal from './OrderConfirmModal.vue'
 import OrderSuccessModal from './OrderSuccessModal.vue'
 
-// 💡 1. 注入父組件 (App.vue) 提供給全域的多語言字典
+// 💡 1. 注入全域狀態
 const t = inject('t')
 const currentLang = inject('currentLang', ref('zh'))
-
+const isStoreOpen = inject('isStoreOpen', ref(true))
 const cartStore = useCartStore()
+
 const isConfirmModalOpen = ref(false)
 const isSuccessModalOpen = ref(false)
 
@@ -67,8 +68,13 @@ const validateCustomTime = () => {
   cartStore.pickupTime = currentLang.value === 'en' ? `Custom Time: ${customTimeInput.value}` : `自訂取餐時間 ${customTimeInput.value}`
 }
 
-// 開啟確認彈窗前進行欄位檢查
+// 開啟確認彈窗前進行欄位檢查與打烊檢查
 const openConfirmModal = () => {
+  if (!isStoreOpen.value) {
+    alert(currentLang.value === 'en' ? 'Store is currently closed!' : '❌ 本店目前暫停營業中，無法送出訂單！')
+    return
+  }
+
   if (cartStore.cartItems.length === 0) {
     alert(currentLang.value === 'en' ? 'Your cart is empty!' : '購物車是空的！')
     return
@@ -342,11 +348,16 @@ const handleConfirmSubmit = async () => {
         </div>
 
         <button 
-          type="button"
+          :disabled="!isStoreOpen || cartStore.cartItems.length === 0" 
           @click="openConfirmModal"
-          class="w-full mt-2 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow transition cursor-pointer"
+          :class="[
+            'w-full py-3 rounded-xl font-bold text-sm transition-all cursor-pointer shadow-sm',
+            !isStoreOpen 
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+              : 'bg-blue-600 hover:bg-blue-700 text-white'
+          ]"
         >
-          {{ currentLang === 'en' ? `Place Order ($${cartStore.totalPrice})` : `確認送出訂單 ($${cartStore.totalPrice})` }}
+          {{ !isStoreOpen ? '🔴 本店打烊中' : (currentLang === 'en' ? 'Confirm Order' : '確認送出訂單') }}
         </button>
       </div>
     </div>
