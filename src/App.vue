@@ -17,7 +17,7 @@ const currentTab = ref('customer')
 const switchTab = (targetTab) => {
   if (targetTab === 'admin') {
     // 預設密碼設定為 1234 (可自行修改)
-    const adminPassword = '1234' 
+    const adminPassword = '512204' 
     const inputPassword = prompt('🔒 請輸入員工/管理員後台密碼：')
 
     if (inputPassword === adminPassword) {
