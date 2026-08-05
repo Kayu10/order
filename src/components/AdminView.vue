@@ -1,4 +1,20 @@
 <template>
+    <section class="add-item-card">
+  <h3>🏪 店家營業狀態控制</h3>
+  <div class="store-status-box">
+    <label class="switch">
+      <input 
+        type="checkbox" 
+        :checked="isStoreOpen" 
+        @change="toggleStoreOpen" 
+      />
+      <span class="slider round"></span>
+    </label>
+    <span :class="['status-text', isStoreOpen ? 'text-green' : 'text-red']">
+      {{ isStoreOpen ? '🟢 營業中 (允許顧客點餐)' : '🔴 暫停營業 (打烊/備料中)' }}
+    </span>
+  </div>
+</section>
   <div class="admin-container">
     <header class="admin-header">
       <h2>⚙️ 俏王妃 - 員工/店長後台管理</h2>
@@ -132,6 +148,7 @@
 import { ref, onMounted ,onUnmounted} from 'vue'
 import { supabase } from '../utils/supabase.js'
 import { generateReceiptBuffer } from '../utils/printer.js'
+const isStoreOpen = ref(true)
 const menuItems = ref([])
 const isLoading = ref(true)
 const isSubmitting = ref(false)
@@ -157,7 +174,26 @@ const sendToPrinter = async (order) => {
     console.error('❌ 出單機連線失敗，請檢查網路與 IP:', err)
   }
 }
+const fetchStoreStatus = async () => {
+  const { data } = await supabase.from('store_settings').select('is_open').single()
+  if (data) isStoreOpen.value = data.is_open
+}
 
+// 切換營業狀態
+const toggleStoreOpen = async () => {
+  const newStatus = !isStoreOpen.value
+  isStoreOpen.value = newStatus
+  try {
+    const { error } = await supabase
+      .from('store_settings')
+      .update({ is_open: newStatus })
+      .eq('id', 1)
+    if (error) throw error
+  } catch (err) {
+    isStoreOpen.value = !newStatus
+    alert('修改營業狀態失敗：' + err.message)
+  }
+}
 // 實時監聽 Supabase 新訂單 (Realtime)
 let orderSubscription = null
 
@@ -170,8 +206,10 @@ onMounted(() => {
       
       // 自動觸發出單機
       sendToPrinter(newOrder)
+      
     })
     .subscribe()
+    fetchStoreStatus()
 })
 
 onUnmounted(() => {

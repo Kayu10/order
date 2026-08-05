@@ -12,7 +12,21 @@ import DrinkModal from './components/DrinkModal.vue'
 
 // 0. 當前切換頁面 (預設點餐頁面 customer，可切換 admin)
 const currentTab = ref('customer')
+const isStoreOpen = ref(true)
+onMounted(() => {
+  // 1. 初始化讀取
+  supabase.from('store_settings').select('is_open').single().then(({ data }) => {
+    if (data) isStoreOpen.value = data.is_open
+  })
 
+  // 2. Realtime 訂閱：當店長後台一切換，前台不需重整理立刻連動！
+  supabase
+    .channel('public:store_settings')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'store_settings' }, (payload) => {
+      isStoreOpen.value = payload.new.is_open
+    })
+    .subscribe()
+})
 // 🔒 頁面切換與密碼驗證邏輯
 const switchTab = (targetTab) => {
   if (targetTab === 'admin') {
@@ -109,6 +123,10 @@ const filteredMenuItems = computed(() => {
 </script>
 
 <template>
+  <!-- 若暫停營業，於菜單上方顯示提示橫幅 -->
+<div v-if="!isStoreOpen" class="closed-banner">
+  ⚠️ 本店目前暫停營業中，暫不開放線上點餐！
+</div>
   <div class="main-wrapper">
     <!-- 頂部頁面切換列 -->
     <nav class="top-nav">
@@ -201,6 +219,16 @@ const filteredMenuItems = computed(() => {
 </template>
 
 <style scoped>
+.closed-banner {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  padding: 12px;
+  text-align: center;
+  font-weight: bold;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
 /* 頂部頁面切換列 */
 .top-nav {
   background-color: #1e293b;
