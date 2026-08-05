@@ -12,6 +12,8 @@ import DrinkModal from './components/DrinkModal.vue'
 
 // 0. 當前切換頁面 (預設點餐頁面 customer，可切換 admin)
 const currentTab = ref('customer')
+
+// 🔒 頁面切換與密碼驗證邏輯
 const switchTab = (targetTab) => {
   if (targetTab === 'admin') {
     // 預設密碼設定為 1234 (可自行修改)
@@ -27,6 +29,7 @@ const switchTab = (targetTab) => {
     currentTab.value = 'customer'
   }
 }
+
 const cartStore = useCartStore()
 
 // 1. 當前語言狀態
@@ -111,12 +114,12 @@ const filteredMenuItems = computed(() => {
     <nav class="top-nav">
       <button 
         :class="{ active: currentTab === 'customer' }" 
-        @click="switchTab = 'customer'">
+        @click="switchTab('customer')">
         📱 顧客點餐畫面
       </button>
       <button 
         :class="{ active: currentTab === 'admin' }" 
-        @click="switchTab = 'admin'">
+        @click="switchTab('admin')">
         ⚙️ 員工管理後台
       </button>
     </nav>
