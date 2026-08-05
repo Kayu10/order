@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch, inject } from 'vue'
-
+const isStoreOpen = inject('isStoreOpen', ref(true))
 const props = defineProps({
   isOpen: Boolean,
   item: Object
@@ -76,6 +76,10 @@ const finalPrice = computed(() => {
 
 // 確認加入購物車
 const handleAddToCart = () => {
+  if (!isStoreOpen.value) {
+    alert('❌ 本店目前暫停營業中，無法加入購物車！')
+    return
+  }
   const sortedPowders = [...selectedPowders.value].sort()
 
   // 1. 過濾有效選項
@@ -180,13 +184,24 @@ const handleAddToCart = () => {
           </span>
           <span class="text-xl font-extrabold text-blue-600">${{ finalPrice }}</span>
         </div>
-        <button
-          type="button"
-          @click="handleAddToCart"
-          class="flex-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-2.5 px-4 rounded-xl shadow transition"
-        >
-          {{ currentLang === 'en' ? 'Add to Cart' : '加入購物車' }}
-        </button>
+       <button
+  type="button"
+  :disabled="!isStoreOpen"
+  @click="handleAddToCart"
+  :class="[
+    'flex-1 font-bold py-2.5 px-4 rounded-xl shadow transition',
+    !isStoreOpen
+      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+      : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white cursor-pointer'
+  ]"
+>
+  <template v-if="!isStoreOpen">
+    {{ currentLang === 'en' ? 'Store Closed' : '打烊中無法加入' }}
+  </template>
+  <template v-else>
+    {{ currentLang === 'en' ? 'Add to Cart' : '加入購物車' }}
+  </template>
+</button>
       </div>
 
     </div>
