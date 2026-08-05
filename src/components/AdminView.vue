@@ -131,11 +131,52 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { supabase } from '../utils/supabase.js'
-
+import { generateReceiptBuffer } from '../utils/printer.js'
 const menuItems = ref([])
 const isLoading = ref(true)
 const isSubmitting = ref(false)
+// 出單機的局域網 IP (請設定為印表機靜態 IP)
+const PRINTER_IP = ref('192.168.1.200')
+const PRINTER_PORT = 9100 // 熱感應出單機標準 Port
+// 發送列印請求至出單機
+const sendToPrinter = async (order) => {
+  try {
+    const rawReceipt = generateReceiptBuffer(order)
+    
+    // 透過 HTTP / Raw Socket 傳送至熱感應印表機
+    const response = await fetch(`http://${PRINTER_IP.value}:${PRINTER_PORT}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8'
+      },
+      body: rawReceipt
+    })
+    
+    console.log('✅ 出單成功！')
+  } catch (err) {
+    console.error('❌ 出單機連線失敗，請檢查網路與 IP:', err)
+  }
+}
 
+// 實時監聽 Supabase 新訂單 (Realtime)
+let orderSubscription = null
+
+onMounted(() => {
+  orderSubscription = supabase
+    .channel('public:orders')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, (payload) => {
+      const newOrder = payload.new
+      console.log('🔔 收到新訂單，準備自動出單：', newOrder)
+      
+      // 自動觸發出單機
+      sendToPrinter(newOrder)
+    })
+    .subscribe()
+})
+
+onUnmounted(() => {
+  if (orderSubscription) supabase.removeChannel(orderSubscription)
+})
 // 新增品項表單預設值
 const newItem = ref({
   name_zh: '',
