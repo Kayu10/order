@@ -3,12 +3,15 @@ import { ref, computed, provide, onMounted } from 'vue'
 import { translations } from './data/i18n.js'
 import { useCartStore } from './stores/useCartStore'
 import { supabase } from './utils/supabase.js'
+
 import AdminView from './components/AdminView.vue'
 import MenuItem from './components/MenuItem.vue'
 import Cart from './components/Cart.vue'
 import CustomModal from './components/CustomizationModal.vue'
 import DrinkModal from './components/DrinkModal.vue'
-const currentTab = ref('admin')
+
+// 0. 當前切換頁面 (預設點餐頁面 customer，可切換 admin)
+const currentTab = ref('customer')
 const cartStore = useCartStore()
 
 // 1. 當前語言狀態
@@ -88,85 +91,93 @@ const filteredMenuItems = computed(() => {
 </script>
 
 <template>
-  <div>
-    <!-- 頂部切換鈕 -->
-    <div style="background: #1e293b; color: white; padding: 8px; text-align: center;">
-      <button @click="currentTab = 'customer'">📱 顧客點餐畫面</button>
-      <button @click="currentTab = 'admin'" style="margin-left: 10px;">⚙️ 員工管理後台</button>
-    </div>
+  <div class="main-wrapper">
+    <!-- 頂部頁面切換列 -->
+    <nav class="top-nav">
+      <button 
+        :class="{ active: currentTab === 'customer' }" 
+        @click="currentTab = 'customer'">
+        📱 顧客點餐畫面
+      </button>
+      <button 
+        :class="{ active: currentTab === 'admin' }" 
+        @click="currentTab = 'admin'">
+        ⚙️ 員工管理後台
+      </button>
+    </nav>
 
     <!-- 根據當前頁面切換顯示 -->
     <AdminView v-if="currentTab === 'admin'" />
-    <div v-else>
-    <!-- 頂部語言切換區塊 -->
-     <div class="app-container">
-    <header class="header">
-      <h1>{{ t.title }}</h1>
-      <div class="lang-switch">
-        <button 
-          :class="{ active: currentLang === 'zh' }" 
-          @click="currentLang = 'zh'">
-          中文
-        </button>
-        <button 
-          :class="{ active: currentLang === 'en' }" 
-          @click="currentLang = 'en'">
-          English
-        </button>
-      </div>
-    </header>
-
-    <main class="main-content">
-      <section class="menu-section">
-        <!-- 分類按鈕區塊 -->
-        <div class="category-buttons">
+    
+    <div v-else class="app-container">
+      <!-- 頂部語言切換區塊 -->
+      <header class="header">
+        <h1>{{ t.title }}</h1>
+        <div class="lang-switch">
           <button 
-            v-for="cat in t.categories" 
-            :key="cat.id"
-            :class="{ active: selectedCategory === cat.id }"
-            @click="selectedCategory = cat.id"
-          >
-            {{ cat.name }}
+            :class="{ active: currentLang === 'zh' }" 
+            @click="currentLang = 'zh'">
+            中文
+          </button>
+          <button 
+            :class="{ active: currentLang === 'en' }" 
+            @click="currentLang = 'en'">
+            English
           </button>
         </div>
+      </header>
 
-        <!-- 載入中狀態 -->
-        <div v-if="isLoading" class="text-center py-12 text-gray-500">
-          <p class="text-sm font-bold">⌛ {{ currentLang === 'en' ? 'Loading menu...' : '菜單載入中...' }}</p>
-        </div>
+      <main class="main-content">
+        <section class="menu-section">
+          <!-- 分類按鈕區塊 -->
+          <div class="category-buttons">
+            <button 
+              v-for="cat in t.categories" 
+              :key="cat.id"
+              :class="{ active: selectedCategory === cat.id }"
+              @click="selectedCategory = cat.id"
+            >
+              {{ cat.name }}
+            </button>
+          </div>
 
-        <!-- 錯誤提示 -->
-        <div v-else-if="fetchError" class="text-center py-12 text-red-500">
-          <p class="text-sm font-bold">{{ fetchError }}</p>
-          <button @click="fetchMenuItems" class="mt-2 text-xs bg-red-100 text-red-700 px-3 py-1 rounded">
-            重新嘗試
-          </button>
-        </div>
+          <!-- 載入中狀態 -->
+          <div v-if="isLoading" class="text-center py-12 text-gray-500">
+            <p class="text-sm font-bold">⌛ {{ currentLang === 'en' ? 'Loading menu...' : '菜單載入中...' }}</p>
+          </div>
 
-        <!-- 菜單列表區塊 -->
-        <div v-else class="menu-grid">
-          <MenuItem 
-            v-for="item in filteredMenuItems" 
-            :key="item.id" 
-            :item="item" 
-          />
-        </div>
-      </section>
+          <!-- 錯誤提示 -->
+          <div v-else-if="fetchError" class="text-center py-12 text-red-500">
+            <p class="text-sm font-bold">{{ fetchError }}</p>
+            <button @click="fetchMenuItems" class="mt-2 text-xs bg-red-100 text-red-700 px-3 py-1 rounded">
+              重新嘗試
+            </button>
+          </div>
 
-      <!-- 購物車區塊 -->
-      <section class="cart-section">
-        <Cart />
-      </section>
-    </main>
+          <!-- 菜單列表區塊 -->
+          <div v-else class="menu-grid">
+            <MenuItem 
+              v-for="item in filteredMenuItems" 
+              :key="item.id" 
+              :item="item" 
+            />
+          </div>
+        </section>
 
-    <!-- 掛載客製化彈窗與飲料彈窗 -->
-    <CustomModal 
-      :is-open="cartStore.isModalOpen"
-      :item="cartStore.selectedItemForCustom"
-      @close="cartStore.closeModal"
-      @add-to-cart="(customizedItem) => cartStore.addToCart(customizedItem)"
-    />
-    <DrinkModal v-if="cartStore.isDrinkModalOpen" />
+        <!-- 購物車區塊 -->
+        <section class="cart-section">
+          <Cart />
+        </section>
+      </main>
+
+      <!-- 掛載客製化彈窗與飲料彈窗 -->
+      <CustomModal 
+        :is-open="cartStore.isModalOpen"
+        :item="cartStore.selectedItemForCustom"
+        @close="cartStore.closeModal"
+        @add-to-cart="(customizedItem) => cartStore.addToCart(customizedItem)"
+      />
+      <DrinkModal v-if="cartStore.isDrinkModalOpen" />
     </div>
   </div>
 </template>
@@ -197,6 +208,7 @@ const filteredMenuItems = computed(() => {
   color: white;
   border-color: #2563eb;
 }
+
 .app-container {
   padding: 20px;
   max-width: 1200px;
